@@ -1,0 +1,96 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Text → Audio Converter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+    textarea { width: 100%; height: 200px; font-size: 16px; padding: 10px; border-radius: 6px; border: 1px solid #ccc; }
+    select, button { padding: 10px 14px; margin-top: 12px; font-size: 16px; border-radius: 6px; cursor: pointer; }
+    button { background: #007bff; color: white; border: none; }
+    button:hover { background: #0056b3; }
+    #status { margin-top: 20px; font-weight: bold; color: green; }
+  </style>
+</head>
+<body>
+  <h1>🔊 Text → Audio Converter</h1>
+  <p>Enter text below and choose a voice (try picking a female voice like <b>Google UK English Female</b> if available).</p>
+
+  <textarea id="text" placeholder="Paste or type your text here..."></textarea><br>
+  
+  <label for="voiceSelect">Choose Voice:</label>
+  <select id="voiceSelect"></select><br>
+
+  <button onclick="convertText()">Convert to Audio</button>
+
+  <div id="status"></div>
+
+  <script>
+    let voices = [];
+
+    function populateVoices() {
+      voices = speechSynthesis.getVoices();
+      const voiceSelect = document.getElementById("voiceSelect");
+      voiceSelect.innerHTML = "";
+
+      voices.forEach((voice, i) => {
+        const option = document.createElement("option");
+        option.value = i;
+        option.textContent = `${voice.name} (${voice.lang})`;
+        if (voice.name.toLowerCase().includes("female")) {
+          option.textContent += " 🌸";
+        }
+        voiceSelect.appendChild(option);
+      });
+    }
+
+    function speakChunk(chunk, voice, rate = 1) {
+      return new Promise(resolve => {
+        let utterance = new SpeechSynthesisUtterance(chunk);
+        utterance.voice = voice;
+        utterance.rate = rate;
+        utterance.onend = resolve;
+        speechSynthesis.speak(utterance);
+      });
+    }
+
+    async function convertText() {
+      let text = document.getElementById("text").value.trim();
+      if (!text) {
+        alert("Please enter some text!");
+        return;
+      }
+
+      // Stop any previous speech
+      speechSynthesis.cancel();
+
+      // Break text into safe chunks (~2000 chars each)
+      const chunkSize = 2000;
+      let chunks = [];
+      for (let i = 0; i < text.length; i += chunkSize) {
+        chunks.push(text.substring(i, i + chunkSize));
+      }
+
+      document.getElementById("status").innerHTML = "🔄 Converting " + chunks.length + " chunks...";
+
+      // Pick selected voice
+      let voiceIndex = document.getElementById("voiceSelect").value;
+      let voice = voices[voiceIndex] || voices[0];
+
+      // Speak each chunk in order
+      for (let i = 0; i < chunks.length; i++) {
+        document.getElementById("status").innerHTML = `🎤 Speaking chunk ${i+1} of ${chunks.length}...`;
+        await speakChunk(chunks[i], voice, 1);
+      }
+
+      document.getElementById("status").innerHTML = "✅ Finished speaking all text!";
+    }
+
+    // Load voices
+    speechSynthesis.onvoiceschanged = populateVoices;
+    populateVoices();
+  </script>
+</body>
+</html>
